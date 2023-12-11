@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 const kAlertHeight = 80.0;
 
 enum AlertPriority {
-  error(2),
-  warning(1),
-  info(0);
+  error(2, 'Oops, ocorreu um erro. Pedimos desculpas.'),
+  warning(1, 'Atenção! Você foi avisado.'),
+  info(0, 'Este é um aplicativo escrito em Flutter.');
 
-  const AlertPriority(this.value);
+  const AlertPriority(this.value, this.description);
   final int value;
+  final String description;
 }
 
 class Alert extends StatelessWidget {
@@ -83,19 +84,23 @@ class AlertMessenger extends StatefulWidget {
       throw FlutterError.fromParts(
         [
           ErrorSummary('No AlertMessenger was found in the Element tree'),
-          ErrorDescription('AlertMessenger is required in order to show and hide alerts.'),
-          ...context.describeMissingAncestor(expectedAncestorType: AlertMessenger),
+          ErrorDescription(
+              'AlertMessenger is required in order to show and hide alerts.'),
+          ...context.describeMissingAncestor(
+              expectedAncestorType: AlertMessenger),
         ],
       );
     }
   }
 }
 
-class AlertMessengerState extends State<AlertMessenger> with TickerProviderStateMixin {
+class AlertMessengerState extends State<AlertMessenger>
+    with TickerProviderStateMixin {
   late final AnimationController controller;
   late final Animation<double> animation;
 
   Widget? alertWidget;
+  final currentAlertPrioriry = ValueNotifier<AlertPriority?>(null);
 
   @override
   void initState() {
@@ -123,11 +128,18 @@ class AlertMessengerState extends State<AlertMessenger> with TickerProviderState
   }
 
   void showAlert({required Alert alert}) {
-    setState(() => alertWidget = alert);
-    controller.forward();
+    if (currentAlertPrioriry.value == null ||
+        alert.priority.value > currentAlertPrioriry.value!.value) {
+      currentAlertPrioriry.value = alert.priority;
+      setState(() => alertWidget = alert);
+      controller.reverse().then((value) {
+        controller.forward();
+      });
+    }
   }
 
   void hideAlert() {
+    currentAlertPrioriry.value = null;
     controller.reverse();
   }
 
@@ -171,7 +183,8 @@ class _AlertMessengerScope extends InheritedWidget {
   final AlertMessengerState state;
 
   @override
-  bool updateShouldNotify(_AlertMessengerScope oldWidget) => state != oldWidget.state;
+  bool updateShouldNotify(_AlertMessengerScope oldWidget) =>
+      state != oldWidget.state;
 
   static _AlertMessengerScope? maybeOf(BuildContext context) {
     return context.dependOnInheritedWidgetOfExactType<_AlertMessengerScope>();
